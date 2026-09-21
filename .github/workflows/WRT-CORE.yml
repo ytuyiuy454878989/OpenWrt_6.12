@@ -334,3 +334,7 @@ jobs:
             - 固件内核版本：${{ env.VERSION_KERNEL }}
             - 固件编译前最后一次➦[主源码](${{ env.REPO_URL }})更新记录
             - ${{ env.VERSION_INFO }}
+            ### 🧊 插件
+            - 插件：$(grep -oP "luci-app(-[a-zA-Z0-9]{1,}){1,}" ./firmware/*.manifest | awk -F":" '{print $NF}')
+            
+
