@@ -74,7 +74,6 @@ on:
         required: false
         default: '这是开启全功能NSS的6.12内核固件，默认主题为Argon'
         type: string
-
 env:
   REPO_URL: https://github.com/${{inputs.WRT_SOURCE || 'LiBwrt/LibWrt'}}.git
   REPO_BRANCH: ${{inputs.WRT_BRANCH || '25.12-nss'}}
@@ -86,18 +85,15 @@ env:
   TOOLCHAIN_CACHE: true
   TOOLCHAIN_TAG: toolchain-cache
   TZ: Asia/Shanghai
-
   GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
   WRT_SOURCE: ${{inputs.WRT_SOURCE}}
   WRT_TARGET: ${{inputs.WRT_TARGET}}
   WRT_PACKAGE: ${{inputs.WRT_PACKAGE}}
   WRT_CONFIG: ${{inputs.WRT_CONFIG}}
-
 jobs:
   Build:
     runs-on: ubuntu-latest
     name: build firmware for ${{ inputs.WRT_TARGET }}
-
     steps:
       - name: Check Server Performance
         run: |
@@ -113,7 +109,6 @@ jobs:
           echo -e "$(sudo lshw -short -C memory | grep GiB) \n"
           echo "--------------------------硬盘信息--------------------------"
           echo "硬盘数量：$(ls /dev/sd* | grep -v [1-9] | wc -l)" && df -hT
-
       - name: Initialization Environment
         env:
           DEBIAN_FRONTEND: noninteractive
@@ -123,17 +118,14 @@ jobs:
           sudo -E apt-get -y install $(curl -fsSL ophub.org/ubuntu2404-make-openwrt-depends)
           sudo -E systemctl daemon-reload
           sudo timedatectl set-timezone "$TZ"
-
       - name: Combine Disks
         uses: easimon/maximize-build-space@master
         with:
           swap-size-mb: 1024
           temp-reserve-mb: 100
           root-reserve-mb: 1024
-
       - name: Checkout
         uses: actions/checkout@main
-
       - name: Clone Source Code
         run: |
           df -hT $GITHUB_WORKSPACE
@@ -142,7 +134,6 @@ jobs:
           echo "OPENWRT_PATH=$PWD" >> $GITHUB_ENV
           VERSION_INFO=$(git show -s --date=short --format="作者: %an<br/>时间: %cd<br/>内容: %s<br/>hash: %H")
           echo "VERSION_INFO=$VERSION_INFO" >> $GITHUB_ENV
-
       - name: Generate Variables
         run: |
           cp $CONFIG_FILE $OPENWRT_PATH/.config
@@ -164,15 +155,12 @@ jobs:
           
           export WRT_DATE=$(TZ=UTC-8 date +"%y.%m.%d_%H.%M.%S")
           export WRT_CI=$(basename $GITHUB_WORKSPACE)
-
           echo "WRT_DATE=$WRT_DATE" >> $GITHUB_ENV
           echo "WRT_CI=$WRT_CI" >> $GITHUB_ENV
           echo "FIRMWARE_SOURCE=$(basename $WRT_SOURCE)" >> $GITHUB_ENV
-
       - name: Check Scripts
         run: |
           find ./ -maxdepth 3 -type f -iregex ".*\(txt\|sh\)$" -exec dos2unix {} \; -exec chmod +x {} \;
-
       - name: Install Feeds
         run: |
           cd $OPENWRT_PATH
@@ -182,14 +170,12 @@ jobs:
           
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-
       - name: Load Custom Packages
         run: |
           cd $OPENWRT_PATH/package/
           echo "Custom Packages Here."
           $GITHUB_WORKSPACE/scripts/Packages.sh
           $GITHUB_WORKSPACE/scripts/Handles.sh
-
       - name: Load Custom Configuration
         run: |
           cd $OPENWRT_PATH
@@ -197,12 +183,10 @@ jobs:
           cat $GITHUB_WORKSPACE/$CONFIG_FILE $GITHUB_WORKSPACE/$GENERAL_CONFIG_FILE > .config
           $GITHUB_WORKSPACE/scripts/Settings.sh
           make defconfig
-
       - name: Load Toolchain Script
         run: |
           cd $OPENWRT_PATH
           chmod +x $GITHUB_WORKSPACE/$TOOLCHAIN_SCRIPT && $GITHUB_WORKSPACE/$TOOLCHAIN_SCRIPT
-
       - name: Compile Toolchain
         if: env.REBUILD_TOOLCHAIN == 'true'
         id: toolchain
@@ -210,7 +194,6 @@ jobs:
           cd $OPENWRT_PATH
           make toolchain/compile -j$(nproc) || make toolchain/compile -j1 V=s
           $GITHUB_WORKSPACE/$TOOLCHAIN_SCRIPT
-
       - name: Delete Old Toolchain
         if: steps.toolchain.conclusion == 'success' || env.OUTPUT_RELEASE == 'true'
         uses: mknejp/delete-release-assets@v1
@@ -221,7 +204,6 @@ jobs:
             ${{env.CACHE_NAME_PREFIX}}-*
           fail-if-no-assets: false
           fail-if-no-release: false
-
       - name: Upload Toolchain To Release
         if: steps.toolchain.conclusion == 'success' || env.OUTPUT_RELEASE == 'true'
         uses: softprops/action-gh-release@master
@@ -231,14 +213,12 @@ jobs:
           token: ${{secrets.GITHUB_TOKEN}}
           files: output/*
           body: OpenWrt 工具链缓存
-
       - name: Download DL Package
         run: |
           cd $OPENWRT_PATH
           make download -j8
           find dl -size -1024c -exec ls -l {} \;
           find dl -size -1024c -exec rm -f {} \;
-
       - name: Fix Rust CI LLVM 404
         run: |
           cd $OPENWRT_PATH
@@ -261,7 +241,6 @@ jobs:
           
           echo "✅ Patched:"
           grep -n "download-ci-llvm" "$RUST_FILE" || true
-
       - name: Compile Firmware
         id: compile
         run: |
@@ -271,11 +250,9 @@ jobs:
           echo "status=success" >> $GITHUB_OUTPUT
           echo "DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
           echo "FILE_DATE=$(date +"%Y.%m.%d")" >> $GITHUB_ENV
-
       - name: Check Space Usage
         if: (!cancelled())
         run: df -hT
-
       - name: Organize Files
         if: steps.compile.outputs.status == 'success'
         run: |
@@ -312,7 +289,6 @@ jobs:
           ls $OPENWRT_PATH/bin/targets/*/*
           echo "==============================="
           echo "FIRMWARE_PATH=$PWD" >> $GITHUB_ENV
-
       - name: Upload Firmware To Release
         if: steps.compile.outputs.status == 'success'
         uses: ncipollo/release-action@main
@@ -337,3 +313,75 @@ jobs:
             - 固件内核版本：${{ env.VERSION_KERNEL }}
             - 固件编译前最后一次➦[主源码](${{ env.REPO_URL }})更新记录
             - ${{ env.VERSION_INFO }}
+
+      # ============================================================
+      # 新增：列举插件列表（生成 → 上传 → 追加到 Release 正文末尾）
+      # ============================================================
+
+      - name: 生成插件列表
+        id: gen-plugins-list
+        if: steps.compile.outputs.status == 'success'
+        run: |
+          # 进入编译源码目录（.config 与 scripts/diffconfig.sh 都在这里）
+          cd "$OPENWRT_PATH"
+
+          # 1. 定位最终编译配置（Load Custom Configuration 合并后生成的 .config）
+          CFG=".config"
+          if [ ! -f "$CFG" ]; then
+            echo "::error::未找到配置文件（$OPENWRT_PATH/$CFG），无法生成插件列表"
+            exit 1
+          fi
+
+          # 2. 提取插件列表：
+          #    优先用 diffconfig.sh 只取“额外添加”的软件包（与默认配置的差异项）；
+          #    不存在时退化为从 .config 直接提取所有 CONFIG_PACKAGE_*=y 的软件包。
+          if [ -f ./scripts/diffconfig.sh ]; then
+            PLUGINS="$(./scripts/diffconfig.sh 2>/dev/null \
+              | grep -E '^CONFIG_PACKAGE_[A-Za-z0-9_+-]+=y$' \
+              | sed 's/^CONFIG_PACKAGE_//; s/=y$//' \
+              | sort -u || true)"
+          else
+            PLUGINS="$(grep -E '^CONFIG_PACKAGE_[A-Za-z0-9_+-]+=y$' "$CFG" \
+              | sed 's/^CONFIG_PACKAGE_//; s/=y$//' \
+              | sort -u || true)"
+          fi
+
+          COUNT="$(printf '%s\n' "$PLUGINS" | sed '/^$/d' | wc -l)"
+          echo "提取到 $COUNT 个插件"
+
+          # 3. 生成 Markdown 插件列表文件（写入工作区根目录，供上传使用）
+          {
+            echo "### 📦 插件列表（共 $COUNT 个）"
+            echo ""
+            printf '%s\n' "$PLUGINS" | sed '/^$/d' | sed 's/^/- `/' | sed 's/$/`/'
+          } > "$GITHUB_WORKSPACE/plugins_list.md"
+
+          # 输出给后续步骤使用
+          echo "list_file=$GITHUB_WORKSPACE/plugins_list.md" >> "$GITHUB_OUTPUT"
+          echo "list_count=$COUNT" >> "$GITHUB_OUTPUT"
+
+      - name: 上传插件列表并更新 Release 说明
+        if: steps.compile.outputs.status == 'success'
+        run: |
+          TAG="${{ env.FIRMWARE_TAG }}-${{ env.FIRMWARE_SOURCE }}"
+
+          # 1) 将插件列表作为附件上传到 Release（--clobber 支持重复运行覆盖同名文件）
+          gh release upload "$TAG" "${{ steps.gen-plugins-list.outputs.list_file }}" --clobber
+          echo "已上传插件列表附件 plugins_list.md（共 ${{ steps.gen-plugins-list.outputs.list_count }} 个插件）"
+
+          # 2) 将插件列表追加到 Release 正文末尾（带标记去重，重复运行不会重复追加）
+          gh release view "$TAG" --json body -q .body > release_body.md
+          if grep -q '<!-- PLUGINS-LIST -->' release_body.md; then
+            sed -i '/<!-- PLUGINS-LIST -->/,$d' release_body.md
+          fi
+          {
+            cat release_body.md
+            echo ""
+            echo "<!-- PLUGINS-LIST -->"
+            echo ""
+            cat "${{ steps.gen-plugins-list.outputs.list_file }}"
+          } > new_body.md
+          gh release edit "$TAG" --notes-file new_body.md
+          echo "已更新 Release 说明，追加插件列表"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
